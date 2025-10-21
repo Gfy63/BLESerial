@@ -1,0 +1,28 @@
+#######################################
+# Syntax Coloring Map
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+BLESerial   KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+begin KEYWORD2
+available KEYWORD2
+peek KEYWORD2
+connected KEYWORD2
+read KEYWORD2
+write KEYWORD2
+flush KEYWORD2
+end KEYWORD2
+
+#######################################
+# Structure (KEYWORD3)
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################
