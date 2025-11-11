@@ -22,28 +22,33 @@
 #include "BLESerial.h"
 
 class BLESerialServerCallbacks: public BLEServerCallbacks {
-    friend class BLESerial; 
-    BLESerial* bleSerial;
-    
-    void onConnect(BLEServer* pServer) {
-        // do anything needed on connection
-        delay(1000); // wait for connection to complete or messages can be lost
-    };
+	friend class BLESerial; 
+	BLESerial* bleSerial;
+	
+	void onConnect(BLEServer* pServer) {
+		// do anything needed on connection
+		delay(1000); // wait for connection to complete or messages can be lost
+ 
+		if( bleSerial->custom_spp_callback ) (bleSerial->custom_spp_callback)(ESP_SPP_SRV_OPEN_EVT, NULL);
 
-    void onDisconnect(BLEServer* pServer) {
-        pServer->startAdvertising(); // restart advertising
-        // Serial.println("Started advertising");
-    }
+	};
+
+	void onDisconnect(BLEServer* pServer) {
+		pServer->startAdvertising(); // restart advertising
+		// Serial.println("Started advertising");
+	
+		if( bleSerial->custom_spp_callback ) (bleSerial->custom_spp_callback)(ESP_SPP_CLOSE_EVT, NULL);
+	}
 };
 
 class BLESerialCharacteristicCallbacks: public BLECharacteristicCallbacks {
-    friend class BLESerial; 
-    BLESerial* bleSerial;
-    
-    void onWrite(BLECharacteristic *pCharacteristic) {
+	friend class BLESerial; 
+	BLESerial* bleSerial;
+	
+	void onWrite(BLECharacteristic *pCharacteristic) {
  
-      bleSerial->receiveBuffer = bleSerial->receiveBuffer + pCharacteristic->getValue();
-    }
+	  bleSerial->receiveBuffer = bleSerial->receiveBuffer + pCharacteristic->getValue();
+	}
 
 };
 
@@ -55,10 +60,14 @@ class BLESerialCharacteristicCallbacks: public BLECharacteristicCallbacks {
 
 // Constructor
 
+/**
+ * @brief Constructors.
+ */
 BLESerial::BLESerial()
 {
   // create instance  
   receiveBuffer = "";
+
 }
 
 // Destructor
@@ -69,126 +78,153 @@ BLESerial::~BLESerial(void) {}  // clean up
 
 // Begin bluetooth serial
 
+/**
+ * @brief Use if constructor is empty.
+ * @param localName     Name of the BLE connection.
+*/
 bool BLESerial::begin(const char* localName)
 {
-    // Create the BLE Device
-    BLEDevice::init(localName);
+	// Create the BLE Device
+	BLEDevice::init(localName);
 
-    // Create the BLE Server
-    pServer = BLEDevice::createServer();
-    if (pServer == nullptr)
-        return false;
-    
-    BLESerialServerCallbacks* bleSerialServerCallbacks =  new BLESerialServerCallbacks(); 
-    bleSerialServerCallbacks->bleSerial = this;      
-    pServer->setCallbacks(bleSerialServerCallbacks);
+	// Create the BLE Server
+	pServer = BLEDevice::createServer();
+	if (pServer == nullptr)
+		return false;
+	
+	BLESerialServerCallbacks* bleSerialServerCallbacks =  new BLESerialServerCallbacks(); 
+	bleSerialServerCallbacks->bleSerial = this;      
+	pServer->setCallbacks(bleSerialServerCallbacks);
 
-    // Create the BLE Service
-    pService = pServer->createService(SERVICE_UUID);
-    if (pService == nullptr)
-        return false;
+	// Create the BLE Service
+	pService = pServer->createService(SERVICE_UUID);
+	if (pService == nullptr)
+		return false;
 
-    // Create a BLE Characteristic
-    pTxCharacteristic = pService->createCharacteristic(
-                                            CHARACTERISTIC_UUID_TX,
-                                            BLECharacteristic::PROPERTY_NOTIFY
-                                        );
-    if (pTxCharacteristic == nullptr)
-        return false;                    
-    pTxCharacteristic->addDescriptor(new BLE2902());
+	// Create a BLE Characteristic
+	pTxCharacteristic = pService->createCharacteristic(
+											CHARACTERISTIC_UUID_TX,
+											BLECharacteristic::PROPERTY_NOTIFY
+										);
+	if (pTxCharacteristic == nullptr)
+		return false;                    
+	pTxCharacteristic->addDescriptor(new BLE2902());
 
-    BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(
-                                                CHARACTERISTIC_UUID_RX,
-                                                BLECharacteristic::PROPERTY_WRITE
-                                            );
-    if (pRxCharacteristic == nullptr)
-        return false; 
+	BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(
+												CHARACTERISTIC_UUID_RX,
+												BLECharacteristic::PROPERTY_WRITE
+											);
+	if (pRxCharacteristic == nullptr)
+		return false; 
 
-    BLESerialCharacteristicCallbacks* bleSerialCharacteristicCallbacks =  new BLESerialCharacteristicCallbacks(); 
-    bleSerialCharacteristicCallbacks->bleSerial = this;  
-    pRxCharacteristic->setCallbacks(bleSerialCharacteristicCallbacks);
+	BLESerialCharacteristicCallbacks* bleSerialCharacteristicCallbacks =  new BLESerialCharacteristicCallbacks(); 
+	bleSerialCharacteristicCallbacks->bleSerial = this;  
+	pRxCharacteristic->setCallbacks(bleSerialCharacteristicCallbacks);
 
-    // Start the service
-    pService->start();
-    // Serial.println("starting service");
+	// Start the service
+	pService->start();
+	Serial.println("starting service");
 
-    // Start advertising
-    pServer->getAdvertising()->addServiceUUID(pService->getUUID()); 
-    pServer->getAdvertising()->start();
-    // Serial.println("Waiting a client connection to notify...");
-    return true;
+	// Start advertising
+	pServer->getAdvertising()->addServiceUUID(pService->getUUID()); 
+	pServer->getAdvertising()->start();
+	Serial.println("Waiting a client connection to notify...");
+	return true;
 
 } // begin()
 
 ////////////////////////////////////
 
+/**
+ * @brief Data are available if not 0.
+ * @return Number of char in read buffer.
+*/
 int BLESerial::available(void)
 {
-    // reply with data available
-    return receiveBuffer.length();
+	// reply with data available
+	return receiveBuffer.length();
 
 } // available()
 
 ////////////////////////////////////
 
+/**
+ * @brief Read a char without deleting it from buffer.
+ * @return ASCII code of the char.
+*/
 int BLESerial::peek(void)
 {
-    // return first character available
-    // but don't remove it from the buffer
-    if ((receiveBuffer.length() > 0)){
-        uint8_t c = receiveBuffer[0];
-        return c;
-    }
-    else
-        return -1;
+	// return first character available
+	// but don't remove it from the buffer
+	if ((receiveBuffer.length() > 0)){
+		uint8_t c = receiveBuffer[0];
+		return c;
+	}
+	else
+		return -1;
 
 } // peek()
 
 ////////////////////////////////////
 
+/**
+ * @brief Is a device is connected.
+ * @return True if a device is connected.
+*/
 bool BLESerial::connected(void)
 {
-    // true if connected
-    if (pServer->getConnectedCount() > 0)
-        return true;
-    else 
-        return false;     
+	// true if connected
+	if (pServer->getConnectedCount() > 0)
+		return true;
+	else 
+		return false;     
 
 } // connected()
 
 ////////////////////////////////////
 
+/**
+ * @brief Read a char.
+ * @return ASCII code of the char.
+*/
 int BLESerial::read(void)
 {
-    // read a character
-    if ((receiveBuffer.length() > 0)){
-        uint8_t c = receiveBuffer[0];
-        receiveBuffer.erase(0,1); // remove it from the buffer
-        return c;
-    }
-    else
-        return -1;
+	// read a character
+	if ((receiveBuffer.length() > 0)){
+		uint8_t c = receiveBuffer[0];
+		receiveBuffer.erase(0,1); // remove it from the buffer
+		return c;
+	}
+	else
+		return -1;
 
 } // read()
 
 ////////////////////////////////////
 
+/**
+ * @brief Write data to BLE.
+ * @param c         Byte to send.
+ * @param buffer    Data to send.
+ * @param size      Number of bytes to send.
+ * @return Number of byte send.
+*/
 size_t BLESerial::write(uint8_t c)
 {
-    // write a character
-    uint8_t _c = c;
-    pTxCharacteristic->setValue(&_c, 1);
-    pTxCharacteristic->notify();
-    delay(10); // bluetooth stack will go into congestion, if too many packets are sent
-    return 1;
+	// write a character
+	uint8_t _c = c;
+	pTxCharacteristic->setValue(&_c, 1);
+	pTxCharacteristic->notify();
+	delay(10); // bluetooth stack will go into congestion, if too many packets are sent
+	return 1;
 
 } // Write()
 
 size_t BLESerial::write(const uint8_t *buffer, size_t size)
 {
-    // write a buffer
-    for(int i=0; i < size; i++){
-        write(buffer[i]);
+	// write a buffer
+	for(int i=0; i < size; i++){
+		write(buffer[i]);
   }
   return size;
 
@@ -196,9 +232,9 @@ size_t BLESerial::write(const uint8_t *buffer, size_t size)
 
 size_t BLESerial::write(char *buffer, size_t size)
 {
-    // write a buffer
-    for(int i=0; i < size; i++){
-        write(buffer[i]);
+	// write a buffer
+	for(int i=0; i < size; i++){
+		write(buffer[i]);
   }
   return size;
 
@@ -206,13 +242,13 @@ size_t BLESerial::write(char *buffer, size_t size)
 
 size_t BLESerial::write(char *buffer)
 {
-    // write a buffer until NULL
-    int i=0;
-    while( buffer[i] != '\0')
-    {
-        write(buffer[i]);
-        i++;
-    }
+	// write a buffer until NULL
+	int i=0;
+	while( buffer[i] != '\0')
+	{
+		write(buffer[i]);
+		i++;
+	}
 
   return i;
 
@@ -220,19 +256,41 @@ size_t BLESerial::write(char *buffer)
 
 ////////////////////////////////////
 
+/**
+ * @brief Remove buffer data.
+*/
 void BLESerial::flush()
 {
-    // remove buffered data
-    receiveBuffer.clear();
+	// remove buffered data
+	receiveBuffer.clear();
 
 } // flush()
 
 ////////////////////////////////////
 
+/**
+ * @brief Close connection.
+*/
 void BLESerial::end()
 {
-    // close connection
+	// close connection
+	pService->executeDelete();
+	BLEDevice::deinit();
 
 } // end()
+
+////////////////////////////////////
+
+/**
+ * @brief Event callback.
+ *        For compability with BluetoothSerial.
+ * @param callback Private callback function.
+ * @return ESP_OK
+*/
+esp_err_t BLESerial::register_callback(esp_spp_cb_t callback)
+{
+	custom_spp_callback = callback;
+	return ESP_OK;
+}
 
 // End of 'BLESerial.cpp'.

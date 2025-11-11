@@ -16,9 +16,9 @@
  * @file    BLEserial.h
  * @author  Gfy63 (mrgoofy@gmx.net) 
  *          Original: Copyright 2019 Ian Archbell / oddWires (https://github.com/iot-bus/BLESerial.git)
- * @brief   Serial over BLE. (UART)
- * @version 0.2.0
- * @date 2025-01-16
+ * @brief   Serial over BLE. (UART) (Functions are compatible with BluetoothSerial)
+ * @version 0.3.0
+ * @date 2025-11-11
  * 
  * @copyright 2025
  **********************************/
@@ -33,93 +33,60 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#include <esp_spp_api.h>
+
 #define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
 #define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
 class BLESerial: public Stream
 {
-    public:
+	public:
 
-    	/**
+		/**
 		 * --- CONSTRUCTOR & BEGIN ---
 		*/
 
-    	/**
-		 * @brief Constructors.
-		 */
-        BLESerial(void);
-        ~BLESerial(void);
+		BLESerial(void);
+		~BLESerial(void);
 
-		/**
-		 * @brief Use if constructor is empty.
-		 * @param localName     Name of the BLE connection.
-		*/
-        bool begin(const char* localName="UART Service");
+		bool begin(const char* localName="UART Service");
 
 		/**
 		 * --- PUBLIC FUNCTIONS ---
 		*/
 
-        /**
-		 * @brief Data are available if not 0.
-		 * @return Number of char in read buffer.
-		*/
-        int available(void);
+		int available(void);
+		int peek(void);
+		bool connected(void);
+		int read(void);
 
-		/**
-		 * @brief Read a char without deleting it from buffer.
-		 * @return ASCII code of the char.
-		*/
-        int peek(void);
+		size_t write(uint8_t c);
+		size_t write(const uint8_t *buffer, size_t size);
+		size_t write(char *buffer, size_t size);
+		size_t write(char *buffer);
 
-		/**
-		 * @brief Is a device is connected.
-		 * @return True if a device is connected.
-		*/
-        bool connected(void);
+		void flush();
+		void end(void);
 
-		/**
-		 * @brief Read a char.
-		 * @return ASCII code of the char.
-		*/
-        int read(void);
+		esp_err_t register_callback(esp_spp_cb_t callback);
 
-		/**
-		 * @brief Write data to BLE.
-         * @param c         Byte to send.
-         * @param buffer    Data to send.
-         * @param size      Number of bytes to send.
-		 * @return Number of byte send.
-		*/
-        size_t write(uint8_t c);
-        size_t write(const uint8_t *buffer, size_t size);
-        size_t write(char *buffer, size_t size);
-        size_t write(char *buffer);
+	private:
+		String local_name;
+		BLEServer *pServer = NULL;
+		BLEService *pService;
+		BLECharacteristic * pTxCharacteristic;
+		bool deviceConnected = false;
+		uint8_t txValue = 0;
 
+		// For compability with BluetoothSerial.
+		esp_spp_cb_t custom_spp_callback = NULL;
+		esp_spp_cb_param_t param;
 
-		/**
-		 * @brief Remove buffer data.
-		*/
-        void flush();
+		std::string receiveBuffer;
 
- 		/**
-		 * @brief Close connection.
-		*/
-       void end(void);
-
-    private:
-        String local_name;
-        BLEServer *pServer = NULL;
-        BLEService *pService;
-        BLECharacteristic * pTxCharacteristic;
-        bool deviceConnected = false;
-        uint8_t txValue = 0;
-        
-        std::string receiveBuffer;
-
-        friend class BLESerialServerCallbacks;
-        friend class BLESerialCharacteristicCallbacks;
+		friend class BLESerialServerCallbacks;
+		friend class BLESerialCharacteristicCallbacks;
 
 };
 

@@ -18,6 +18,7 @@ read KEYWORD2
 write KEYWORD2
 flush KEYWORD2
 end KEYWORD2
+register_callback KEYWORD2
 
 #######################################
 # Structure (KEYWORD3)
