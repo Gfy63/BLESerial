@@ -17,10 +17,10 @@
  * @author  Gfy63 (mrgoofy@gmx.net) 
  *          Original: Copyright 2019 Ian Archbell / oddWires (https://github.com/iot-bus/BLESerial.git)
  * @brief   Serial over BLE. (UART) (Functions are compatible with BluetoothSerial)
- * @version 0.3.0
- * @date 2025-11-11
+ * @version 0.4.0
+ * @date 2026-08-22
  * 
- * @copyright 2025
+ * @copyright 2025-26
  **********************************/
 
 #ifndef _BLE_SERIAL_H_
@@ -51,6 +51,7 @@ class BLESerial: public Stream
 		~BLESerial(void);
 
 		bool begin(const char* localName="UART Service");
+		bool begin( BLEServer* sharedServer );
 
 		/**
 		 * --- PUBLIC FUNCTIONS ---
@@ -65,6 +66,7 @@ class BLESerial: public Stream
 		size_t write(const uint8_t *buffer, size_t size);
 		size_t write(char *buffer, size_t size);
 		size_t write(char *buffer);
+		size_t write( String buffer);
 
 		void flush();
 		void end(void);
@@ -72,12 +74,15 @@ class BLESerial: public Stream
 		esp_err_t register_callback(esp_spp_cb_t callback);
 
 	private:
+		bool pLocalServer = false;			// Local BLE server if true.
 		String local_name;
 		BLEServer *pServer = NULL;
 		BLEService *pService;
 		BLECharacteristic * pTxCharacteristic;
 		bool deviceConnected = false;
 		uint8_t txValue = 0;
+
+		uint16_t negotiatedMTU = 23;		// Default MTU.
 
 		// For compability with BluetoothSerial.
 		esp_spp_cb_t custom_spp_callback = NULL;

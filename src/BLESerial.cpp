@@ -16,7 +16,7 @@
  * @file    BLESerial.cpp
  * @author  Gfy63 (mrgoofy@gmx.net)
  * 
- * @copyright 2025
+ * @copyright 2025-26
  **********************************/
 
 #include "BLESerial.h"
@@ -34,11 +34,18 @@ class BLESerialServerCallbacks: public BLEServerCallbacks {
 	};
 
 	void onDisconnect(BLEServer* pServer) {
-		pServer->startAdvertising(); // restart advertising
+		delay(500);						// give the bluetooth stack the chance to get things ready
+		pServer->startAdvertising();	// restart advertising
 		// Serial.println("Started advertising");
 	
 		if( bleSerial->custom_spp_callback ) (bleSerial->custom_spp_callback)(ESP_SPP_CLOSE_EVT, NULL);
 	}
+
+	void onMtuChanged(BLEServer* pServer, esp_ble_gatts_cb_param_t* param) {
+		bleSerial->negotiatedMTU = param->mtu.mtu;
+		// Serial.printf("Negotiated MTU: %d\n", param->mtu.mtu);
+	}
+
 };
 
 class BLESerialCharacteristicCallbacks: public BLECharacteristicCallbacks {
@@ -84,11 +91,28 @@ BLESerial::~BLESerial(void) {}  // clean up
 */
 bool BLESerial::begin(const char* localName)
 {
+	pLocalServer = true;		// Local server.
+
 	// Create the BLE Device
 	BLEDevice::init(localName);
 
 	// Create the BLE Server
 	pServer = BLEDevice::createServer();
+	if (pServer == nullptr)
+		return false;
+
+	return begin( pServer );		// Sart BLESerial.
+
+} // begin()
+
+/**
+ * @brief Use if constructor is empty.
+ * @param server     Use of a existing server.
+*/
+bool BLESerial::begin( BLEServer *server )
+{
+	// Use existing BLE Server
+	pServer = server;
 	if (pServer == nullptr)
 		return false;
 	
@@ -127,6 +151,7 @@ bool BLESerial::begin(const char* localName)
 
 	// Start advertising
 	pServer->getAdvertising()->addServiceUUID(pService->getUUID()); 
+	pServer->getAdvertising()->setMinPreferred( 0x00 );
 	pServer->getAdvertising()->start();
 	Serial.println("Waiting a client connection to notify...");
 	return true;
@@ -205,8 +230,6 @@ int BLESerial::read(void)
 /**
  * @brief Write data to BLE.
  * @param c         Byte to send.
- * @param buffer    Data to send.
- * @param size      Number of bytes to send.
  * @return Number of byte send.
 */
 size_t BLESerial::write(uint8_t c)
@@ -220,6 +243,12 @@ size_t BLESerial::write(uint8_t c)
 
 } // Write()
 
+/**
+ * @brief Write data to BLE.
+ * @param buffer    Data to send.
+ * @param size      Number of bytes to send.
+ * @return Number of byte send.
+*/
 size_t BLESerial::write(const uint8_t *buffer, size_t size)
 {
 	// write a buffer
@@ -230,6 +259,12 @@ size_t BLESerial::write(const uint8_t *buffer, size_t size)
 
 } // write()
 
+/**
+ * @brief Write data to BLE.
+ * @param buffer    Data to send.
+ * @param size      Number of bytes to send.
+ * @return Number of byte send.
+*/
 size_t BLESerial::write(char *buffer, size_t size)
 {
 	// write a buffer
@@ -240,6 +275,11 @@ size_t BLESerial::write(char *buffer, size_t size)
 
 } // write()
 
+/**
+ * @brief Write data to BLE.
+ * @param buffer    Data to send.
+ * @return Number of byte send.
+*/
 size_t BLESerial::write(char *buffer)
 {
 	// write a buffer until NULL
@@ -251,6 +291,28 @@ size_t BLESerial::write(char *buffer)
 	}
 
   return i;
+
+} // write()
+
+/**
+ * @brief Write data to BLE. Send packages with maximal MTU length.
+ * @param buffer    Data to send.
+ * @return Number of byte send.
+*/
+size_t BLESerial::write( String buffer)
+{
+	size_t total = buffer.length();
+	uint16_t maxPayload = (negotiatedMTU > 3) ? (negotiatedMTU - 3) : 20;
+	size_t sent = 0;
+
+	while (sent < total) {
+		size_t chunkLen = min((size_t)maxPayload, total - sent);
+		pTxCharacteristic->setValue((uint8_t*)(buffer.c_str() + sent), chunkLen);
+		pTxCharacteristic->notify();
+		sent += chunkLen;
+		delay(10); // bluetooth stack will go into congestion, if too many packets are sent
+	}
+	return sent;
 
 } // write()
 
@@ -273,9 +335,25 @@ void BLESerial::flush()
 */
 void BLESerial::end()
 {
-	// close connection
-	pService->executeDelete();
-	BLEDevice::deinit();
+	if( pLocalServer )
+	{
+		// Local server. Close and stop BLE.
+		// close connection
+		pService->executeDelete();
+		BLEDevice::deinit();
+	}
+	else
+	{
+		// Extern server. Stop BLE service.
+		pServer->getAdvertising()->stop();
+		if( pService != NULL )
+		{
+			pService->stop();
+			pService->executeDelete();
+			pService = NULL;
+		}
+		pServer->getAdvertising()->start();
+	}
 
 } // end()
 
