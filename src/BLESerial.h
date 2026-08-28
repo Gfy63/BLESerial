@@ -17,8 +17,8 @@
  * @author  Gfy63 (mrgoofy@gmx.net) 
  *          Original: Copyright 2019 Ian Archbell / oddWires (https://github.com/iot-bus/BLESerial.git)
  * @brief   Serial over BLE. (UART) (Functions are compatible with BluetoothSerial)
- * @version 0.4.0
- * @date 2026-08-22
+ * @version 0.4.1
+ * @date 2026-08-28
  * 
  * @copyright 2025-26
  **********************************/
@@ -34,10 +34,6 @@
 #include <BLE2902.h>
 
 #include <esp_spp_api.h>
-
-#define SERVICE_UUID           "6E400001-B5A3-F393-E0A9-E50E24DCCA9E" // UART service UUID
-#define CHARACTERISTIC_UUID_RX "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
-#define CHARACTERISTIC_UUID_TX "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"
 
 class BLESerial: public Stream
 {
@@ -74,6 +70,12 @@ class BLESerial: public Stream
 		esp_err_t register_callback(esp_spp_cb_t callback);
 
 	private:
+		const char* LOG_TAG = "BLESerial (Class)";		// ESP_LOG tag
+
+		const char* SERVICE_UUID           = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";	 // UART service UUID
+		const char* CHARACTERISTIC_UUID_RX = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+		const char* CHARACTERISTIC_UUID_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
+
 		bool pLocalServer = false;			// Local BLE server if true.
 		String local_name;
 		BLEServer *pServer = NULL;

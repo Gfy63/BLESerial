@@ -28,7 +28,9 @@ class BLESerialServerCallbacks: public BLEServerCallbacks {
 	void onConnect(BLEServer* pServer) {
 		// do anything needed on connection
 		delay(1000); // wait for connection to complete or messages can be lost
- 
+
+ 		ESP_LOGI( LOG_TAG, "Device connected." );
+
 		if( bleSerial->custom_spp_callback ) (bleSerial->custom_spp_callback)(ESP_SPP_SRV_OPEN_EVT, NULL);
 
 	};
@@ -36,14 +38,14 @@ class BLESerialServerCallbacks: public BLEServerCallbacks {
 	void onDisconnect(BLEServer* pServer) {
 		delay(500);						// give the bluetooth stack the chance to get things ready
 		pServer->startAdvertising();	// restart advertising
-		// Serial.println("Started advertising");
+		ESP_LOGI( LOG_TAG, "Started advertising." );
 	
 		if( bleSerial->custom_spp_callback ) (bleSerial->custom_spp_callback)(ESP_SPP_CLOSE_EVT, NULL);
 	}
 
 	void onMtuChanged(BLEServer* pServer, esp_ble_gatts_cb_param_t* param) {
 		bleSerial->negotiatedMTU = param->mtu.mtu;
-		// Serial.printf("Negotiated MTU: %d\n", param->mtu.mtu);
+		ESP_LOGI( LOG_TAB, "Negotiated MTU: %d", param->mtu.mtu);
 	}
 
 };
@@ -147,13 +149,13 @@ bool BLESerial::begin( BLEServer *server )
 
 	// Start the service
 	pService->start();
-	Serial.println("starting service");
+	ESP_LOGI( ESP_LOG, "starting service" );
 
 	// Start advertising
 	pServer->getAdvertising()->addServiceUUID(pService->getUUID()); 
 	pServer->getAdvertising()->setMinPreferred( 0x00 );
 	pServer->getAdvertising()->start();
-	Serial.println("Waiting a client connection to notify...");
+	ESP_LOGI( LOG_TAG, "Waiting a client connection to notify..." );
 	return true;
 
 } // begin()

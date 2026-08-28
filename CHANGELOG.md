@@ -1,5 +1,10 @@
 # Changelog for BELSerial
 
+## [0.4.1] - 2026-08-28
+
+	CHG     Replace #define with constexpr
+	CHG		Use ESP_LOGx
+
 ## [0.4.0] - 2026-08-22
 
 	ADD		begin( BLEserver * sharedServer ) for multi connections.

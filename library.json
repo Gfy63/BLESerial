@@ -1,6 +1,6 @@
 {
   "name": "BLESerial",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "This library makes it simple to send and received data that would normally go to or be sent by the serial monitor. It is based on the BLE implementation originally created by Neil Kolban and included in the Espressif esp32 distribution.",
   "keywords": "BLE, serial, communication",
   "repository":
