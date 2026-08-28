@@ -45,7 +45,7 @@ class BLESerialServerCallbacks: public BLEServerCallbacks {
 
 	void onMtuChanged(BLEServer* pServer, esp_ble_gatts_cb_param_t* param) {
 		bleSerial->negotiatedMTU = param->mtu.mtu;
-		ESP_LOGI( bleSerial->LOG_TAB, "Negotiated MTU: %d", param->mtu.mtu);
+		ESP_LOGI( bleSerial->LOG_TAG, "Negotiated MTU: %d", param->mtu.mtu);
 	}
 
 };
@@ -149,7 +149,7 @@ bool BLESerial::begin( BLEServer *server )
 
 	// Start the service
 	pService->start();
-	ESP_LOGI( ESP_LOG, "starting service" );
+	ESP_LOGI( LOG_TAG, "starting service" );
 
 	// Start advertising
 	pServer->getAdvertising()->addServiceUUID(pService->getUUID()); 
