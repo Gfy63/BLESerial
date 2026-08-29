@@ -91,8 +91,10 @@ BLESerial::~BLESerial(void) {}  // clean up
  * @brief Use if constructor is empty.
  * @param localName     Name of the BLE connection.
 */
-bool BLESerial::begin(const char* localName)
+bool BLESerial::begin(const char* localName, esp_spp_cb_t callback )
 {
+	if( callback != nullptr ) custom_spp_callback = callback;
+
 	pLocalServer = true;		// Local server.
 
 	// Create the BLE Device
@@ -111,12 +113,13 @@ bool BLESerial::begin(const char* localName)
  * @brief Use if constructor is empty.
  * @param server     Use of a existing server.
 */
-bool BLESerial::begin( BLEServer *server )
+bool BLESerial::begin( BLEServer *server, esp_spp_cb_t callback )
 {
+	if( callback != nullptr ) custom_spp_callback = callback;
+
 	// Use existing BLE Server
 	pServer = server;
-	if (pServer == nullptr)
-		return false;
+	if (pServer == nullptr) return false;
 	
 	BLESerialServerCallbacks* bleSerialServerCallbacks =  new BLESerialServerCallbacks(); 
 	bleSerialServerCallbacks->bleSerial = this;      
@@ -124,41 +127,52 @@ bool BLESerial::begin( BLEServer *server )
 
 	// Create the BLE Service
 	pService = pServer->createService(SERVICE_UUID);
-	if (pService == nullptr)
-		return false;
+	if (pService == nullptr) return false;
 
 	// Create a BLE Characteristic
-	pTxCharacteristic = pService->createCharacteristic(
+	pCharacteristic_TX = pService->createCharacteristic(
 											CHARACTERISTIC_UUID_TX,
 											BLECharacteristic::PROPERTY_NOTIFY
 										);
-	if (pTxCharacteristic == nullptr)
+	if (pCharacteristic_TX == nullptr)
 		return false;                    
-	pTxCharacteristic->addDescriptor(new BLE2902());
+	pCharacteristic_TX->addDescriptor(new BLE2902());
 
-	BLECharacteristic * pRxCharacteristic = pService->createCharacteristic(
+	BLECharacteristic * pCharacteristic_RX = pService->createCharacteristic(
 												CHARACTERISTIC_UUID_RX,
 												BLECharacteristic::PROPERTY_WRITE
 											);
-	if (pRxCharacteristic == nullptr)
-		return false; 
+	if (pCharacteristic_RX == nullptr) return false; 
 
 	BLESerialCharacteristicCallbacks* bleSerialCharacteristicCallbacks =  new BLESerialCharacteristicCallbacks(); 
 	bleSerialCharacteristicCallbacks->bleSerial = this;  
-	pRxCharacteristic->setCallbacks(bleSerialCharacteristicCallbacks);
+	pCharacteristic_RX->setCallbacks(bleSerialCharacteristicCallbacks);
 
 	// Start the service
 	pService->start();
-	ESP_LOGI( LOG_TAG, "starting service" );
 
 	// Start advertising
 	pServer->getAdvertising()->addServiceUUID(pService->getUUID()); 
 	pServer->getAdvertising()->setMinPreferred( 0x00 );
 	pServer->getAdvertising()->start();
-	ESP_LOGI( LOG_TAG, "Waiting a client connection to notify..." );
+	ESP_LOGI( LOG_TAG, "Device initialized. Advertising..." );
 	return true;
 
 } // begin()
+
+////////////////////////////////////
+
+/**
+ * @brief Event callback.
+ *        For compability with BluetoothSerial.
+ * @param callback Private callback function.
+ * @return ESP_OK
+*/
+void BLESerial::register_callback( esp_spp_cb_t callback )
+{
+	custom_spp_callback = callback;
+
+} // register_callback()
 
 ////////////////////////////////////
 
@@ -238,8 +252,8 @@ size_t BLESerial::write(uint8_t c)
 {
 	// write a character
 	uint8_t _c = c;
-	pTxCharacteristic->setValue(&_c, 1);
-	pTxCharacteristic->notify();
+	pCharacteristic_TX->setValue(&_c, 1);
+	pCharacteristic_TX->notify();
 	delay(10); // bluetooth stack will go into congestion, if too many packets are sent
 	return 1;
 
@@ -309,8 +323,8 @@ size_t BLESerial::write( String buffer)
 
 	while (sent < total) {
 		size_t chunkLen = min((size_t)maxPayload, total - sent);
-		pTxCharacteristic->setValue((uint8_t*)(buffer.c_str() + sent), chunkLen);
-		pTxCharacteristic->notify();
+		pCharacteristic_TX->setValue((uint8_t*)(buffer.c_str() + sent), chunkLen);
+		pCharacteristic_TX->notify();
 		sent += chunkLen;
 		delay(10); // bluetooth stack will go into congestion, if too many packets are sent
 	}
@@ -361,16 +375,5 @@ void BLESerial::end()
 
 ////////////////////////////////////
 
-/**
- * @brief Event callback.
- *        For compability with BluetoothSerial.
- * @param callback Private callback function.
- * @return ESP_OK
-*/
-esp_err_t BLESerial::register_callback(esp_spp_cb_t callback)
-{
-	custom_spp_callback = callback;
-	return ESP_OK;
-}
 
 // End of 'BLESerial.cpp'.

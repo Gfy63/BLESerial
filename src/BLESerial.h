@@ -17,7 +17,7 @@
  * @author  Gfy63 (mrgoofy@gmx.net) 
  *          Original: Copyright 2019 Ian Archbell / oddWires (https://github.com/iot-bus/BLESerial.git)
  * @brief   Serial over BLE. (UART) (Functions are compatible with BluetoothSerial)
- * @version 0.4.1
+ * @version 0.4.2
  * @date 2026-08-28
  * 
  * @copyright 2025-26
@@ -35,23 +35,40 @@
 
 #include <esp_spp_api.h>
 
+/*----------------------------------
+	CONSTANT
+----------------------------------*/
+
+/*----------------------------------
+	STRUCT & TYPEDEF
+----------------------------------*/
+
 class BLESerial: public Stream
 {
+	/*----------------------------------
+		FRIEND
+	----------------------------------*/
+	
+	friend class BLESerialServerCallbacks;
+	friend class BLESerialCharacteristicCallbacks;
+
 	public:
 
-		/**
-		 * --- CONSTRUCTOR & BEGIN ---
-		*/
+		/*----------------------------------
+			CONSTRUCTOR & BEGIN
+		----------------------------------*/
 
 		BLESerial(void);
 		~BLESerial(void);
 
-		bool begin(const char* localName="UART Service");
-		bool begin( BLEServer* sharedServer );
+		bool begin(const char* localName="UART Service", esp_spp_cb_t callback=nullptr );
+		bool begin( BLEServer* sharedServer, esp_spp_cb_t callback=nullptr );
 
-		/**
-		 * --- PUBLIC FUNCTIONS ---
-		*/
+		/*----------------------------------
+			PUBLIC FUNCTIONS PROTOTYPE
+		----------------------------------*/
+
+		void register_callback( esp_spp_cb_t callback );
 
 		int available(void);
 		int peek(void);
@@ -67,9 +84,8 @@ class BLESerial: public Stream
 		void flush();
 		void end(void);
 
-		esp_err_t register_callback(esp_spp_cb_t callback);
-
 	private:
+
 		const char* LOG_TAG = "BLESerial (Class)";		// ESP_LOG tag
 
 		const char* SERVICE_UUID           = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";	 // UART service UUID
@@ -77,23 +93,20 @@ class BLESerial: public Stream
 		const char* CHARACTERISTIC_UUID_TX = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
 
 		bool pLocalServer = false;			// Local BLE server if true.
-		String local_name;
-		BLEServer *pServer = NULL;
-		BLEService *pService;
-		BLECharacteristic * pTxCharacteristic;
+		String local_name;					// Name of BLE device.
+		BLEServer *pServer = nullptr;			// BLE server.
+		BLEService *pService;				// BLE service
+		BLECharacteristic * pCharacteristic_TX = nullptr;
 		bool deviceConnected = false;
 		uint8_t txValue = 0;
 
 		uint16_t negotiatedMTU = 23;		// Default MTU.
 
 		// For compability with BluetoothSerial.
-		esp_spp_cb_t custom_spp_callback = NULL;
+		esp_spp_cb_t custom_spp_callback = nullptr;
 		esp_spp_cb_param_t param;
 
 		std::string receiveBuffer;
-
-		friend class BLESerialServerCallbacks;
-		friend class BLESerialCharacteristicCallbacks;
 
 };
 

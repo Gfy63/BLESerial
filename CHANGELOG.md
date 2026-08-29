@@ -1,5 +1,10 @@
 # Changelog for BELSerial
 
+## [0.4.2] - 2026-08-29
+
+	CHG		begin() can contailn also callback.
+	CHG		register_callback() has no return value.
+
 ## [0.4.1] - 2026-08-28
 
 	CHG     Replace #define with constexpr

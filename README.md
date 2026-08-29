@@ -12,11 +12,9 @@ Download from [github](https://github.com/Gfy63/BLESerial.git).
 BLESerial bleSerial;
 void BT_EventHandler(esp_spp_cb_event_t event, esp_spp_cb_param_t *param);  // Callback function.
 
-bleSerial.begin("BLE Serial");  // Set BLE server name.
+bleSerial.begin("BLE Serial", BT_EventHandler );    // Set BLE server name.
 // or
-bleSerial.begin( pServer );  // Use existing BLEserver.
-
-bleSerial.register_callback(BT_EventHandler);  // Register callback function.
+bleSerial.begin( pServer, BT_EventHandler );         // Use existing BLEserver.
 
 loop
 {
